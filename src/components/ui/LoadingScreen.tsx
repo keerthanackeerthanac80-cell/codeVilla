@@ -106,7 +106,7 @@ export default function LoadingScreen({ progress, onComplete }: LoadingScreenPro
         </HologramText>
 
         <p className="text-white/30 text-sm md:text-base font-body tracking-[0.3em] uppercase">
-          Premium AI Education Academy
+          Online Course Registration System
         </p>
       </motion.div>
 

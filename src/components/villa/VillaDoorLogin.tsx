@@ -230,7 +230,7 @@ export default function VillaDoorLogin({ onLoginSuccess }: VillaDoorLoginProps) 
                   Flying AI Villa
                 </HologramText>
                 <p className="text-white/30 text-xs font-body tracking-[0.2em] uppercase">
-                  {mode === 'login' ? 'Enter the Academy' : 'Create Your Identity'}
+                  {mode === 'login' ? 'Enter the Online Course registration System' : 'Create Your Identity'}
                 </p>
               </div>
 

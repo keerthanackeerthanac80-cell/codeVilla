@@ -135,7 +135,7 @@ export const COURSES: Course[] = [
     color: '#F59E0B',
     colorRgb: '245, 158, 11',
     gradient: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)',
-    videoSrc: 'https://www.youtube.com/watch?v=9lQhZrKpQh8',
+    videoSrc: 'https://www.youtube.com/watch?v=w71RHxAWxaM',
     duration: '14 Hours',
     difficulty: 'Advanced',
     topics: [
@@ -187,7 +187,7 @@ export const COURSES: Course[] = [
     color: '#EF4444',
     colorRgb: '239, 68, 68',
     gradient: 'linear-gradient(135deg, #DC2626 0%, #EF4444 100%)',
-    videoSrc: 'https://www.youtube.com/watch?v=fNzpcB9Ow2k',
+    videoSrc: 'https://youtu.be/ug8W0sFiVJo',
     duration: '18 Hours',
     difficulty: 'Advanced',
     topics: [
