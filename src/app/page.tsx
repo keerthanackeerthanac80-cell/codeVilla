@@ -35,7 +35,6 @@ export default function HomePage() {
   const [phase, setPhase] = useState<AppPhase>('loading');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [user, setUser] = useState<VillaUser | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
 
   // 3D scene focus
   const [focusedTarget, setFocusedTarget] = useState<{
@@ -57,15 +56,6 @@ export default function HomePage() {
     overallProgress,
   } = useProgress(user?.id);
 
-  // Check existing session on mount
-  useEffect(() => {
-    const existingUser = getSession();
-    if (existingUser) {
-      setUser(existingUser);
-    }
-    setAuthChecked(true);
-  }, []);
-
   // Simulate loading progress
   useEffect(() => {
     if (phase !== 'loading') return;
@@ -83,13 +73,14 @@ export default function HomePage() {
 
   // Handle loading complete — transition based on auth state
   const handleLoadingComplete = useCallback(() => {
-    if (!authChecked) return;
-    if (user) {
+    const existingUser = getSession();
+    if (existingUser) {
+      setUser(existingUser);
       setPhase('exploring');
     } else {
       setPhase('login');
     }
-  }, [authChecked, user]);
+  }, []);
 
   // Handle login/register success
   const handleLoginSuccess = useCallback((authedUser: VillaUser) => {
