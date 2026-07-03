@@ -3,9 +3,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BarChart3, LogOut, GraduationCap, ArrowDown } from 'lucide-react';
+import { BarChart3, LogOut, GraduationCap, ArrowDown, Shield } from 'lucide-react';
 
-import { getSession, logout as logoutUser, type VillaUser } from '@/utils/auth';
+import { getSession, logout as logoutUser, type VillaUser, isAdmin } from '@/utils/auth';
 import { useProgress } from '@/hooks/useProgress';
 import { type Course, getCourseById } from '@/utils/courses';
 
@@ -15,8 +15,9 @@ import CourseRoom from '@/components/courses/CourseRoom';
 import CourseVideoRoom from '@/components/courses/CourseVideoRoom';
 import CertificateRoom from '@/components/certificate/CertificateRoom';
 import AIAssistant from '@/components/ui/AIAssistant';
-import ProgressDashboard from '@/components/ui/ProgressDashboard';
+import StudentDashboard from '@/components/dashboard/StudentDashboard';
 import HologramText from '@/components/ui/HologramText';
+
 
 // Dynamic import for the heavy 3D scene — prevents SSR issues
 const FlyingVilla = dynamic(
@@ -35,6 +36,7 @@ export default function HomePage() {
   const [phase, setPhase] = useState<AppPhase>('loading');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [user, setUser] = useState<VillaUser | null>(null);
+  const [userIsAdmin, setUserIsAdmin] = useState(false);
 
   // 3D scene focus
   const [focusedTarget, setFocusedTarget] = useState<{
@@ -45,6 +47,15 @@ export default function HomePage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [showProgressDashboard, setShowProgressDashboard] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setUserIsAdmin(false);
+      return;
+    }
+    isAdmin(user.id).then((admin) => setUserIsAdmin(admin));
+  }, [user]);
+
 
   // Progress hook
   const {
@@ -254,6 +265,17 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Admin Button */}
+              {userIsAdmin && (
+                <a
+                  href="/admin"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-ai-blue/10 hover:bg-ai-blue/20 text-ai-blue border border-ai-blue/25 text-xs transition-all backdrop-blur-md cursor-pointer font-semibold"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span className="hidden md:inline">Admin Panel</span>
+                </a>
+              )}
+
               {/* Dashboard Button */}
               <button
                 onClick={() => setShowProgressDashboard(true)}
@@ -262,6 +284,7 @@ export default function HomePage() {
                 <BarChart3 className="w-4 h-4" />
                 <span className="hidden md:inline">Dashboard ({overallProgress}%)</span>
               </button>
+
 
               {/* User Badge */}
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 backdrop-blur-md border border-white/5 text-xs text-white/60">
@@ -341,14 +364,18 @@ export default function HomePage() {
 
           {/* ---- Progress Dashboard Modal ---- */}
           <AnimatePresence>
-            {showProgressDashboard && (
-              <ProgressDashboard
+            {showProgressDashboard && user && (
+              <StudentDashboard
                 progress={progress}
+                userId={user.id}
+                userName={user.displayName}
+                userEmail={user.email}
                 isOpen={showProgressDashboard}
                 onClose={() => setShowProgressDashboard(false)}
               />
             )}
           </AnimatePresence>
+
         </>
       )}
 

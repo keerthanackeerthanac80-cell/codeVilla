@@ -27,6 +27,8 @@ import {
   getCertificateForCourse,
   type CertificateData,
 } from '@/utils/certificate';
+import { logVideoEvent, logActivity } from '@/lib/db-service';
+
 
 interface CourseVideoRoomProps {
   course: Course;
@@ -75,11 +77,91 @@ export default function CourseVideoRoom({
   const ytId = isYouTube ? getYouTubeId(course.videoSrc) : null;
   const [ytPlayer, setYtPlayer] = useState<any>(null);
 
+  // Video watch analytics tracking refs
+  const watchStartTimeRef = useRef<string>(new Date().toISOString());
+  const totalWatchTimeRef = useRef<number>(0);
+  const pausedDurationRef = useRef<number>(0);
+  const resumeCountRef = useRef<number>(0);
+  const fastForwardCountRef = useRef<number>(0);
+  const replayCountRef = useRef<number>(0);
+  const hasStartedPlayingRef = useRef<boolean>(false);
+  const lastTimeRef = useRef<number>(0);
+
+  // Track YouTube Player state changes for resumeCount
+  useEffect(() => {
+    if (isPlaying) {
+      if (hasStartedPlayingRef.current) {
+        resumeCountRef.current++;
+      } else {
+        hasStartedPlayingRef.current = true;
+      }
+    }
+  }, [isPlaying]);
+
+  // Sync elapsed timer every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPlaying) {
+        totalWatchTimeRef.current++;
+      } else if (hasStartedPlayingRef.current) {
+        pausedDurationRef.current++;
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
   // Check for existing certificate
   useEffect(() => {
     const existing = getCertificateForCourse(userId, course.id);
     if (existing) setCertificate(existing);
   }, [userId, course.id]);
+
+  const effectiveProgress = (isYouTube || videoAvailable) ? watchPct : simulatedProgress;
+
+  const flushAnalytics = useCallback(async () => {
+    if (totalWatchTimeRef.current === 0) return;
+    try {
+      const now = new Date().toISOString();
+      const pct = Math.round(effectiveProgress);
+      const isCompleted = pct >= 90;
+      await logVideoEvent({
+        videoId: course.id + '_video',
+        courseId: course.id,
+        userId,
+        watchStartTime: watchStartTimeRef.current,
+        watchEndTime: now,
+        totalWatchTimeSeconds: totalWatchTimeRef.current,
+        completionPercentage: pct,
+        pausedDurationSeconds: pausedDurationRef.current,
+        resumeCount: resumeCountRef.current,
+        fastForwardCount: fastForwardCountRef.current,
+        replayCount: replayCountRef.current,
+        lastViewedPosition: Math.round(currentTime),
+        completionDate: isCompleted ? now : undefined,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Log student activity
+      await logActivity(
+        userId,
+        userName,
+        'watched_video',
+        `${userName} watched ${course.shortTitle} for ${Math.round(totalWatchTimeRef.current / 60)} minutes`,
+        { courseId: course.id, courseName: course.title }
+      );
+    } catch (err) {
+      console.error('Error flushing video analytics:', err);
+    }
+  }, [course, userId, userName, effectiveProgress, currentTime]);
+
+  // Flush analytics on component unmount
+  useEffect(() => {
+    return () => {
+      flushAnalytics();
+    };
+  }, [flushAnalytics]);
 
   // Load YouTube Player API and initialize player
   useEffect(() => {
@@ -256,6 +338,8 @@ export default function CourseVideoRoom({
   const skip = useCallback((seconds: number) => {
     if (isYouTube) {
       if (ytPlayer) {
+        if (seconds > 0) fastForwardCountRef.current++;
+        else replayCountRef.current++;
         const current = ytPlayer.getCurrentTime();
         ytPlayer.seekTo(Math.min(duration, Math.max(0, current + seconds)), true);
       }
@@ -263,9 +347,12 @@ export default function CourseVideoRoom({
     }
     const video = videoRef.current;
     if (video) {
+      if (seconds > 0) fastForwardCountRef.current++;
+      else replayCountRef.current++;
       video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + seconds));
     }
   }, [isYouTube, ytPlayer, duration]);
+
 
   // Simulate progress for demo mode (no video file and not YouTube)
   useEffect(() => {
@@ -309,7 +396,6 @@ export default function CourseVideoRoom({
   };
 
   const canComplete = watchPct >= 90 || simulatedProgress >= 90;
-  const effectiveProgress = (isYouTube || videoAvailable) ? watchPct : simulatedProgress;
 
   return (
     <motion.div

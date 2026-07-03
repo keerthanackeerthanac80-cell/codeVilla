@@ -8,6 +8,7 @@ import {
   saveProgress,
   createCourseProgress,
   calculateOverallProgress,
+  syncProgressToFirestore,
 } from '@/utils/progress';
 import {
   type CertificateData,
@@ -36,6 +37,8 @@ export function useProgress(userId: string | undefined) {
     (updated: UserProgress) => {
       setProgress(updated);
       saveProgress(updated);
+      // Sync to Firebase in background
+      syncProgressToFirestore(updated);
     },
     []
   );

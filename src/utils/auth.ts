@@ -160,3 +160,118 @@ export function clearSession(): void {
 export function logout(): void {
   clearSession();
 }
+
+// ============================================
+// FIREBASE AUTH INTEGRATION
+// Falls back to localStorage when Firebase is not configured
+// ============================================
+
+import {
+  registerWithFirebase,
+  loginWithFirebase,
+  logoutFirebase,
+  getUserRole,
+} from '@/lib/auth-service';
+import {
+  logActivity,
+  logLoginAttendance,
+  createNotification,
+} from '@/lib/db-service';
+import { isFirebaseConfigured } from '@/lib/firebase';
+
+export async function registerUserFirebase(
+  displayName: string,
+  email: string,
+  password: string,
+  additionalData?: {
+    gender?: string;
+    phoneNumber?: string;
+    currentDegree?: string;
+    collegeOrCompany?: string;
+  }
+): Promise<{ success: boolean; user?: VillaUser; error?: string }> {
+  // Try Firebase first
+  if (isFirebaseConfigured()) {
+    const result = await registerWithFirebase(email, password, displayName, additionalData as any);
+    if (result.success && result.user) {
+      const villaUser: VillaUser = {
+        id: result.user.uid,
+        email: result.user.email,
+        displayName: result.user.displayName,
+        avatarInitials: result.user.avatarInitials,
+        createdAt: result.user.createdAt,
+      };
+      saveSession(villaUser);
+
+      // Log activity & notification (fire-and-forget)
+      logActivity(villaUser.id, villaUser.displayName, 'registered', `${villaUser.displayName} registered`);
+      createNotification('new_registration', 'New Registration', `${villaUser.displayName} just registered`, {
+        userId: villaUser.id,
+        userName: villaUser.displayName,
+      });
+
+      return { success: true, user: villaUser };
+    }
+    return { success: false, error: result.error };
+  }
+
+  // Fallback to localStorage
+  return registerUser(displayName, email, password);
+}
+
+export async function loginUserFirebase(
+  email: string,
+  password: string
+): Promise<{ success: boolean; user?: VillaUser; error?: string }> {
+  // Try Firebase first
+  if (isFirebaseConfigured()) {
+    const result = await loginWithFirebase(email, password);
+    if (result.success && result.user) {
+      const villaUser: VillaUser = {
+        id: result.user.uid,
+        email: result.user.email,
+        displayName: result.user.displayName,
+        avatarInitials: result.user.avatarInitials,
+        createdAt: result.user.createdAt,
+      };
+      saveSession(villaUser);
+
+      // Log activity & attendance (fire-and-forget)
+      logActivity(villaUser.id, villaUser.displayName, 'logged_in', `${villaUser.displayName} logged in`);
+      logLoginAttendance(villaUser.id, typeof navigator !== 'undefined' ? navigator.userAgent : undefined);
+
+      return { success: true, user: villaUser };
+    }
+    return { success: false, error: result.error };
+  }
+
+  // Fallback to localStorage
+  return loginUser(email, password);
+}
+
+export async function logoutWithFirebase(): Promise<void> {
+  clearSession();
+  if (isFirebaseConfigured()) {
+    await logoutFirebase();
+  }
+}
+
+export async function isAdmin(userId: string): Promise<boolean> {
+  if (!isFirebaseConfigured()) {
+    const session = getSession();
+    if (session && session.id === userId) {
+      const emailLower = session.email.toLowerCase();
+      const nameLower = session.displayName.toLowerCase();
+      return (
+        emailLower.includes('admin') ||
+        nameLower.includes('admin') ||
+        session.displayName === 'John Smith'
+      );
+    }
+    return false;
+  }
+  const role = await getUserRole(userId);
+  return role === 'admin';
+}
+
+

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import HeroFrameSequence from '@/components/villa/HeroFrameSequence';
 import HologramText from '@/components/ui/HologramText';
-import { loginUser, registerUser, type VillaUser } from '@/utils/auth';
+import { loginUserFirebase, registerUserFirebase, type VillaUser } from '@/utils/auth';
 
 interface VillaDoorLoginProps {
   onLoginSuccess: (user: VillaUser) => void;
@@ -95,9 +95,9 @@ export default function VillaDoorLogin({ onLoginSuccess }: VillaDoorLoginProps) 
 
       let result;
       if (mode === 'register') {
-        result = registerUser(displayName, email, password);
+        result = await registerUserFirebase(displayName, email, password);
       } else {
-        result = loginUser(email, password);
+        result = await loginUserFirebase(email, password);
       }
 
       if (!result.success || !result.user) {

@@ -82,3 +82,28 @@ export function getInProgressCourseIds(progress: UserProgress): string[] {
     .filter(([, cp]) => cp.started && !cp.completed)
     .map(([id]) => id);
 }
+
+// ============================================
+// FIREBASE SYNC HELPERS
+// ============================================
+
+import { saveProgressToFirestore } from '@/lib/db-service';
+import { isFirebaseConfigured } from '@/lib/firebase';
+
+export async function syncProgressToFirestore(progress: UserProgress): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  try {
+    for (const [courseId, cp] of Object.entries(progress.courses)) {
+      await saveProgressToFirestore(progress.userId, courseId, {
+        started: cp.started,
+        startedAt: cp.startedAt,
+        watchProgress: cp.watchProgress,
+        completed: cp.completed,
+        completedAt: cp.completedAt,
+        certificateId: cp.certificateId,
+      });
+    }
+  } catch (err) {
+    console.error('Failed to sync progress to Firestore:', err);
+  }
+}
